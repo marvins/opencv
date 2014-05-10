@@ -17,6 +17,15 @@ Update repo to OpenCV Master on Itseez
 3.  Sync with master
     git merge upstream/master
 
+Code Notes
+==========
+
+This code works by testing the file signature against a list of drivers.  Due to the fact that
+GDAL supports so many different image types in addition to OpenCVs own formats, we should include
+a flag to force GDAL driver.  Another option is to put the driver on the end of the list so that
+if all else fails, we can send it there to test. The key then is to figure out the different
+signatures for the huge number of GDAL-supported file types.
+
 
 Status
 ======
