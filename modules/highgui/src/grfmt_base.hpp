@@ -55,24 +55,60 @@ typedef Ptr<BaseImageEncoder> ImageEncoder;
 typedef Ptr<BaseImageDecoder> ImageDecoder;
 
 ///////////////////////////////// base class for decoders ////////////////////////
-class BaseImageDecoder
-{
-public:
-    BaseImageDecoder();
-    virtual ~BaseImageDecoder() {}
+class BaseImageDecoder {
 
-    int width() const { return m_width; }
-    int height() const { return m_height; }
-    virtual int type() const { return m_type; }
+    public:
 
-    virtual bool setSource( const String& filename );
-    virtual bool setSource( const Mat& buf );
-    virtual bool readHeader() = 0;
-    virtual bool readData( Mat& img ) = 0;
+        /**
+         * Default Constructor
+        */
+        BaseImageDecoder();
 
-    virtual size_t signatureLength() const;
-    virtual bool checkSignature( const String& signature ) const;
-    virtual ImageDecoder newDecoder() const;
+        /**
+         * Destructor
+        */
+        virtual ~BaseImageDecoder() {}
+
+        /**
+         * Return the image width in pixels
+         * @return Image width in pixels
+        */
+        int width() const { return m_width; }
+
+        /**
+         * Return the image height in pixels
+         * @return Image height in pixels
+        */
+        int height() const { return m_height; }
+
+        /**
+         * Return the pixel type
+         * @return type (CV[DEPTH][S/U]C[#channels])
+        */
+        virtual int type() const { return m_type; }
+
+        /**
+         * Set the buffer source to the specified filename
+        */
+        virtual bool setSource( const String& filename );
+
+        /**
+         * Replace the buffer with the provided data.
+        */
+        virtual bool setSource( const Mat& buf );
+
+        /**
+         * Read file header
+         *
+         * @NOTE Abstract so implement this in children/derived types.
+        */
+        virtual bool readHeader() = 0;
+
+        virtual bool readData( Mat& img ) = 0;
+
+        virtual size_t signatureLength() const;
+        virtual bool checkSignature( const String& signature ) const;
+        virtual ImageDecoder newDecoder() const;
 
 protected:
     int  m_width;  // width  of the image ( filled by readHeader )

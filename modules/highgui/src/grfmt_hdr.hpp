@@ -54,7 +54,9 @@ enum HdrCompression
     HDR_RLE = 1
 };
 
-// Radiance rgbe (.hdr) reader
+/**
+ * Radiance rgbe (.hdr) reader
+*/
 class HdrDecoder : public BaseImageDecoder
 {
 public:

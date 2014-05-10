@@ -55,12 +55,22 @@
 namespace cv
 {
 
+/**
+ * @struct ImageCodecInitializer
+ *
+ * Container which stores the registered codecs to be used by OpenCV
+*/
 struct ImageCodecInitializer
 {
+    /**
+     * Default Constructor for the ImageCodeInitializer
+    */
     ImageCodecInitializer()
     {
+        /// BMP Support
         decoders.push_back( makePtr<BmpDecoder>() );
         encoders.push_back( makePtr<BmpEncoder>() );
+
         decoders.push_back( makePtr<HdrDecoder>() );
         encoders.push_back( makePtr<HdrEncoder>() );
     #ifdef HAVE_JPEG
@@ -99,9 +109,18 @@ struct ImageCodecInitializer
 
 static ImageCodecInitializer codecs;
 
-static ImageDecoder findDecoder( const String& filename )
-{
+/**
+ * Find the decoders
+ *
+ * @param[in] filename File to search
+ *
+ * @return Image decoder to parse image file.
+*/
+static ImageDecoder findDecoder( const String& filename ) {
+
     size_t i, maxlen = 0;
+
+    /// iterate through list of registered codecs
     for( i = 0; i < codecs.decoders.size(); i++ )
     {
         size_t len = codecs.decoders[i]->signatureLength();
@@ -193,6 +212,18 @@ static ImageEncoder findEncoder( const String& _ext )
 
 enum { LOAD_CVMAT=0, LOAD_IMAGE=1, LOAD_MAT=2 };
 
+/**
+ * Read an image into memory and return the information
+ *
+ * @param[in] filename File to load
+ * @param[in] flags Flags
+ * @param[in] hdrtype { LOAD_CVMAT=0,
+ *                      LOAD_IMAGE=1,
+ *                      LOAD_MAT=2
+ *                    }
+ * @param[in] mat Reference to C++ Mat object (If LOAD_MAT)
+ *
+*/
 static void*
 imread_( const String& filename, int flags, int hdrtype, Mat* mat=0 )
 {
@@ -200,9 +231,14 @@ imread_( const String& filename, int flags, int hdrtype, Mat* mat=0 )
     CvMat *matrix = 0;
     Mat temp, *data = &temp;
 
+    /// Search for the relevant decoder to handle the imagery
     ImageDecoder decoder = findDecoder(filename);
-    if( !decoder )
+
+    /// if no decoder was found, return nothing.
+    if( !decoder ){
         return 0;
+    }
+
     decoder->setSource(filename);
     if( !decoder->readHeader() )
         return 0;
@@ -255,10 +291,23 @@ imread_( const String& filename, int flags, int hdrtype, Mat* mat=0 )
         hdrtype == LOAD_IMAGE ? (void*)image : (void*)mat;
 }
 
+/**
+ * Read an image
+ *
+ *  This function merely calls the actual implementation above and returns itself.
+ *
+ * @param[in] filename File to load
+ * @param[in] flags Flags you wish to set.
+*/
 Mat imread( const String& filename, int flags )
 {
+    /// create the basic container
     Mat img;
+
+    /// load the data
     imread_( filename, flags, LOAD_MAT, &img );
+
+    /// return a reference to the data
     return img;
 }
 

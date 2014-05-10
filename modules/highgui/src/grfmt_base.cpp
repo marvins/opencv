@@ -47,13 +47,24 @@
 namespace cv
 {
 
+/**
+ * BaseImageDecoder Constructor
+*/
 BaseImageDecoder::BaseImageDecoder()
 {
-    m_width = m_height = 0;
+    /// Initialize image to size of 0x0
+    m_width = 0;
+    m_height = 0;
+
+    /// Set the type
     m_type = -1;
     m_buf_supported = false;
 }
 
+/**
+ * Set the source file for the decoder to the specified filename.
+ * Also frees the current data buffer container.
+*/
 bool BaseImageDecoder::setSource( const String& filename )
 {
     m_filename = filename;
@@ -61,6 +72,9 @@ bool BaseImageDecoder::setSource( const String& filename )
     return true;
 }
 
+/**
+ * Set the image buffer to another buffer.  Just a transfer/copy.
+*/
 bool BaseImageDecoder::setSource( const Mat& buf )
 {
     if( !m_buf_supported )
