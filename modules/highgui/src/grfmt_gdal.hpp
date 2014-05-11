@@ -42,6 +42,8 @@
 #ifndef __GRFMT_GDAL_HPP__
 #define __GRFMT_GDAL_HPP__
 
+#include <iostream>
+
 /// Macro to make sure we specified GDAL in CMake
 #ifdef HAVE_GDAL
 
@@ -49,14 +51,62 @@
 #include <gdal/cpl_conv.h>
 #include <gdal/gdal_priv.h>
 
+
 /// Start of CV Namespace
 namespace cv {
 
+/**
+ * Loader for GDAL
+*/
+class GdalDecoder : public BaseImageDecoder{
 
+    public:
 
+        /**
+         * Default Constructor
+        */
+        GdalDecoder();
+
+        /**
+         * Destructor
+        */
+        ~GdalDecoder();
+
+        /**
+         * Return the type
+        */
+        int type()const;
+
+        /**
+         * Read image data
+        */
+        bool readData( Mat& img );
+
+        /**
+         * Read the image header
+        */
+        bool readHeader();
+
+        /**
+         * Close the module
+        */
+        void close();
+
+        /**
+         * Create a new decoder
+        */
+        ImageDecoder newDecoder() const;
+
+    protected:
+
+        /// GDAL Dataset
+        GDALDataset* m_dataset;
+
+        /// GDAL Driver
+        GDALDriver* m_driver;
 
 } /// End of Namespace cv
 
 #endif/*HAVE_GDAL*/
 
-#endif/*__GRFMT_GDAL_HPP__
+#endif/*__GRFMT_GDAL_HPP__*/

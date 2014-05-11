@@ -38,3 +38,18 @@
 // the use of this software, even if advised of the possibility of such damage.
 //
 //M*/
+#include "grfmt_gdal.hpp"
+
+/// C++ Standard Libraries
+#include <iostream>
+
+namespace cv{
+
+
+/**
+ * GDAL Decoder Constructor
+*/
+
+
+
+} /// End of cv Namespace

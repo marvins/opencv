@@ -13,6 +13,11 @@
 */
 int main( int argc, char* argv[] ){
 
-   ///
+    ///
+    cv::Mat image = cv::imread(argv[1]);
 
+    cv::imshow("image",image);
+    cv::waitKey(0);
+
+    return 0;
 }
