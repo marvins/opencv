@@ -243,10 +243,14 @@ imread_( const String& filename, int flags, int hdrtype, Mat* mat=0 )
     if( !decoder ){
         return 0;
     }
-
+    
+    /// set the filename in the driver
     decoder->setSource(filename);
-    if( !decoder->readHeader() )
+   
+   // read the header to make sure it succeeds
+   if( !decoder->readHeader() )
         return 0;
+
     CvSize size;
     size.width = decoder->width();
     size.height = decoder->height();

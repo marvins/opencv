@@ -42,7 +42,11 @@
 #ifndef __GRFMT_GDAL_HPP__
 #define __GRFMT_GDAL_HPP__
 
+/// C++ Libraries
 #include <iostream>
+
+/// OpenCV Libraries
+#include "grfmt_base.hpp"
 
 /// Macro to make sure we specified GDAL in CMake
 #ifdef HAVE_GDAL
@@ -73,11 +77,6 @@ class GdalDecoder : public BaseImageDecoder{
         ~GdalDecoder();
 
         /**
-         * Return the type
-        */
-        int type()const;
-
-        /**
          * Read image data
         */
         bool readData( Mat& img );
@@ -96,6 +95,11 @@ class GdalDecoder : public BaseImageDecoder{
          * Create a new decoder
         */
         ImageDecoder newDecoder() const;
+        
+        /**
+         * Test the file signature
+        */
+        virtual bool checkSignature( const String& signature ) const;
 
     protected:
 
@@ -104,6 +108,8 @@ class GdalDecoder : public BaseImageDecoder{
 
         /// GDAL Driver
         GDALDriver* m_driver;
+
+}; /// End of GdalDecoder Class
 
 } /// End of Namespace cv
 

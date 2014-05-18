@@ -101,6 +101,9 @@ class BaseImageDecoder {
          * Read file header
          *
          * @NOTE Abstract so implement this in children/derived types.
+         *
+         * The primary focus is to extract basic information about the file and 
+         * set the image dimensions and make sure the data is supported.
         */
         virtual bool readHeader() = 0;
 
