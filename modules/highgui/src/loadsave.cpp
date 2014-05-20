@@ -250,11 +250,13 @@ imread_( const String& filename, int flags, int hdrtype, Mat* mat=0 )
    // read the header to make sure it succeeds
    if( !decoder->readHeader() )
         return 0;
-
+    
+    // established the required input image size
     CvSize size;
     size.width = decoder->width();
     size.height = decoder->height();
 
+    // grab the decoded type
     int type = decoder->type();
     if( flags != -1 )
     {
@@ -286,7 +288,8 @@ imread_( const String& filename, int flags, int hdrtype, Mat* mat=0 )
         image = cvCreateImage( size, cvIplDepth(type), CV_MAT_CN(type) );
         temp = cvarrToMat(image);
     }
-
+    
+    // read the image data
     if( !decoder->readData( *data ))
     {
         cvReleaseImage( &image );

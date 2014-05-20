@@ -18,11 +18,13 @@ using namespace std;
 int main( int argc, char* argv[] ){
 
     ///
-    cv::Mat image = cv::imread(argv[1]);
+    cv::Mat image = cv::imread(argv[1], 0);
 
     cout << image.rows << " x " << image.cols << endl;
+    if( image.rows <= 0 || image.cols <= 0 ){ return 1; }
+    
     cv::imshow("image",image);
-    cv::waitKey(10);
+    cv::waitKey(5000);
 
     return 0;
 }
