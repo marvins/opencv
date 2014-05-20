@@ -17,12 +17,27 @@ using namespace std;
 */
 int main( int argc, char* argv[] ){
 
-    ///
-    cv::Mat image = cv::imread(argv[1], cv::IMREAD_LOAD_GDAL );
+    /**
+     * Check input arguments
+    */
+    if( argc < 3 ){
+        cout << "usage: " << argv[0] << " <image> <dem>" << endl;
+    }
 
-    cout << image.rows << " x " << image.cols << endl;
+    /// load the image (note that we don't have the projection information.  You will
+    /// need to load that yourself or use the full GDAL driver.
+    cv::Mat image = cv::imread(argv[1], cv::IMREAD_LOAD_GDAL | cv::IMREAD_COLOR );
+
+    /// load the dem model
+    cv::Mat dem = cv::imread(argv[2], cv::IMREAD_LOAD_GDAL | cv::IMREAD_GRAYSCALE );
+    cout << "DEM loaded" << endl;
+
+    cout << "Image: " << image.rows << " x " << image.cols << " with " << image.channels() << endl;
+    cout << "Dem  : " << dem.rows << " x " << dem.cols << " with " << dem.channels() << endl;
+
     if( image.rows <= 0 || image.cols <= 0 ){ return 1; }
-    
+    if( dem.rows <= 0 || dem.cols <= 0 ){ return 1; }
+
     cv::imshow("image",image);
     cv::waitKey(5000);
 

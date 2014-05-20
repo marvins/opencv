@@ -239,7 +239,6 @@ imread_( const String& filename, int flags, int hdrtype, Mat* mat=0 )
     /// Search for the relevant decoder to handle the imagery
     ImageDecoder decoder;
     
-    std::cout << "Flags: " << flags << std::endl;
     if( (flags & IMREAD_LOAD_GDAL) == IMREAD_LOAD_GDAL ){
         decoder = GdalDecoder().newDecoder();
     }else{

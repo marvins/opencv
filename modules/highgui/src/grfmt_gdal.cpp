@@ -59,18 +59,21 @@ int gdal2opencv( const GDALDataType& gdalType, const int& channels ){
         case GDT_Byte:
             if( channels == 1 ){ return CV_8UC1; }
             if( channels == 3 ){ return CV_8UC3; }
+            if( channels == 4 ){ return CV_8UC4; }
             return -1;
         
         /// UInt16
         case GDT_UInt16:
             if( channels == 1 ){ return CV_16UC1; }
             if( channels == 3 ){ return CV_16UC3; }
+            if( channels == 4 ){ return CV_16UC4; }
             return -1;
 
         /// Int16
         case GDT_Int16:
             if( channels == 1 ){ return CV_16SC1; }
             if( channels == 3 ){ return CV_16SC3; }
+            if( channels == 4 ){ return CV_16SC4; }
             return -1;
 
         /// UInt32
@@ -78,6 +81,7 @@ int gdal2opencv( const GDALDataType& gdalType, const int& channels ){
         case GDT_Int32:
             if( channels == 1 ){ return CV_32SC1; }
             if( channels == 3 ){ return CV_32SC3; }
+            if( channels == 4 ){ return CV_32SC4; }
             return -1;
 
         default:
@@ -97,14 +101,20 @@ std::string GetOpenCVTypeName( const int& type ){
             return "CV_8UC1";
         case CV_8UC3:
             return "CV_8UC3";
+        case CV_8UC4:
+            return "CV_8UC4";
         case CV_16UC1:
             return "CV_16UC1";
         case CV_16UC3:
             return "CV_16UC3";
+        case CV_16UC4:
+            return "CV_16UC4";
         case CV_16SC1:
             return "CV_16SC1";
         case CV_16SC3:
             return "CV_16SC3";
+        case CV_16SC4:
+            return "CV_16SC4";
         default:
             return "Unknown";
     }
@@ -121,6 +131,12 @@ GdalDecoder::GdalDecoder(){
     
     // set a dummy signature
     m_signature="000000000000";
+    
+    /// Register the driver
+    GDALAllRegister();
+
+    m_driver = NULL;
+    m_dataset = NULL;
 }
 
 /**
@@ -180,17 +196,60 @@ void write_pixel( const double& pixelValue, const GDALDataType& gdalType, const 
 
     // input: 1 channel, output: 1 channel
     if( gdalChannels == 1 && image.channels() == 1 ){
-        image.at<uchar>(row,col) = newValue;
+        if( image.depth() == CV_8U ){       image.at<uchar>(row,col)          = newValue; }
+        else if( image.depth() == CV_16U ){ image.at<unsigned short>(row,col) = newValue; }
+        else if( image.depth() == CV_16S ){ image.at<short>(row,col)          = newValue; }
+        else if( image.depth() == CV_32S ){ image.at<int>(row,col)            = newValue; }
+        else if( image.depth() == CV_32F ){ image.at<float>(row,col)          = newValue; }
+        else if( image.depth() == CV_64F ){ image.at<double>(row,col)         = newValue; }
+        else{ throw std::runtime_error("Unknown image depth, gdal: 1, img: 1"); }
     }
 
     // input: 1 channel, output: 3 channel
     else if( gdalChannels == 1 && image.channels() == 3 ){
-        image.at<Vec3b>(row,col) = Vec3b(newValue,newValue,newValue);
+        if( image.depth() == CV_8U ){  image.at<Vec3b>(row,col) = Vec3b(newValue,newValue,newValue); }
+        else{                          throw std::runtime_error("Unknown image depth, gdal:1, img: 3"); }
     }
 
     // input: 3 channel, output: 1 channel
     else if( gdalChannels == 3 && image.channels() == 1 ){
-        image.at<uchar>(row,col) += (newValue/3.0);
+        if( image.depth() == CV_8U ){   image.at<uchar>(row,col) += (newValue/3.0); }
+        else{ throw std::runtime_error("Unknown image depth, gdal:3, img: 1"); }
+    }
+    
+    // input: 4 channel, output: 1 channel
+    else if( gdalChannels == 4 && image.channels() == 1 ){
+        if( image.depth() == CV_8U ){   image.at<uchar>(row,col) = newValue;  }
+        else{ throw std::runtime_error("Unknown image depth, gdal: 4, image: 1"); }
+    }
+    
+    // input: 3 channel, output: 3 channel
+    else if( gdalChannels == 3 && image.channels() == 3 ){
+        if( image.depth() == CV_8U ){  image.at<Vec3b>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_16U ){  image.at<Vec3s>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_16S ){  image.at<Vec3s>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_32S ){  image.at<Vec3i>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_32F ){  image.at<Vec3f>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_64F ){  image.at<Vec3d>(row,col)[channel] = newValue;  }
+        else{ throw std::runtime_error("Unknown image depth, gdal: 3, image: 3"); }
+    }
+
+    // input: 4 channel, output: 3 channel
+    else if( gdalChannels == 4 && image.channels() == 3 ){
+        if( channel >= 4 ){ return; }
+        else if( image.depth() == CV_8U  && channel < 4  ){  image.at<Vec3b>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_16U && channel < 4 ){  image.at<Vec3s>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_16S && channel < 4 ){  image.at<Vec3s>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_32S && channel < 4 ){  image.at<Vec3i>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_32F && channel < 4 ){  image.at<Vec3f>(row,col)[channel] = newValue;  }
+        else if( image.depth() == CV_64F && channel < 4 ){  image.at<Vec3d>(row,col)[channel] = newValue;  }
+        else{ throw std::runtime_error("Unknown image depth, gdal: 4, image: 3"); }
+    }
+
+    // input: 4 channel, output: 4 channel
+    else if( gdalChannels == 4 && image.channels() == 4 ){
+        if( image.depth() == CV_8U ){  image.at<Vec4b>(row,col)[channel] = newValue;  }
+        else{ throw std::runtime_error("Unknown image depth, gdal: 4, image: 4"); }
     }
 
     // otherwise, throw an error
@@ -231,9 +290,13 @@ bool GdalDecoder::readData( Mat& img ){
 
     // iterate over each raster band
     // note that OpenCV does bgr rather than rgb
-    const int nChannels = m_dataset->GetRasterCount();
+    int nChannels = m_dataset->GetRasterCount();
     const GDALDataType gdalType = m_dataset->GetRasterBand(1)->GetRasterDataType();
     int nRows, nCols;
+
+    if( nChannels > img.channels() ){ 
+        nChannels = img.channels(); 
+    }
 
     for( int c = 0; c<nChannels; c++ ){
 
@@ -282,9 +345,6 @@ bool GdalDecoder::readData( Mat& img ){
 bool GdalDecoder::readHeader(){
 
     std::cout << "gdal decoder readHeader" << std::endl;
-   
-    /// Register the driver
-    GDALAllRegister();
 
 	// load the dataset 
     m_dataset = (GDALDataset*) GDALOpen( m_filename.c_str(), GA_ReadOnly);
@@ -303,6 +363,13 @@ bool GdalDecoder::readHeader(){
 	
 	//extract the driver infomation
     m_driver = m_dataset->GetDriver();
+    
+    // if the driver failed, then exit
+    if( m_driver == NULL ){ 
+        std::cout << "Driver failed to load" << std::endl;
+        return false; 
+    }
+    
 
     // get the image dimensions
     m_width = m_dataset->GetRasterXSize();
@@ -317,6 +384,7 @@ bool GdalDecoder::readHeader(){
     // convert the datatype to opencv
     int tempType = gdal2opencv( m_dataset->GetRasterBand(1)->GetRasterDataType(), m_dataset->GetRasterCount());
     if( tempType == -1 ){
+        std::cout << "type not recognized. Load failed." << std::endl;
         return false;
     }
     m_type = tempType;
