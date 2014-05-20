@@ -90,6 +90,28 @@ int gdal2opencv( const GDALDataType& gdalType, const int& channels ){
 }
 
 
+std::string GetOpenCVTypeName( const int& type ){
+
+    switch(type){
+        case CV_8UC1:
+            return "CV_8UC1";
+        case CV_8UC3:
+            return "CV_8UC3";
+        case CV_16UC1:
+            return "CV_16UC1";
+        case CV_16UC3:
+            return "CV_16UC3";
+        case CV_16SC1:
+            return "CV_16SC1";
+        case CV_16SC3:
+            return "CV_16SC3";
+        default:
+            return "Unknown";
+    }
+    return "Unknown";
+}
+
+
 /**
  * GDAL Decoder Constructor
 */
@@ -131,7 +153,19 @@ double range_cast( const GDALDataType& gdalType, const int& cvDepth, const doubl
     if( gdalType == GDT_Byte && (cvDepth == CV_32F || cvDepth == CV_32S)){
         return (value*16777216);
     }
+    
+    // int16 -> uint8
+    if( (gdalType == GDT_UInt16 || gdalType == GDT_Int16) && cvDepth == CV_8U ){
+        return std::floor(value/256.0);
+    }
 
+    // int16 -> int16
+    if( (gdalType == GDT_UInt16 || gdalType == GDT_Int16) && 
+        ( cvDepth == CV_16U     ||  cvDepth == CV_16S   )){
+        return value;
+    }
+    
+    std::cout << GDALGetDataTypeName( gdalType ) << std::endl;
     std::cout << "warning: unknown range cast requested." << std::endl;
     return (value);
 }
@@ -191,6 +225,9 @@ bool GdalDecoder::readData( Mat& img ){
 
     // set the image to zero
     img = 0;
+
+    std::cout << "input : " << GetOpenCVTypeName(m_type) << std::endl;
+    std::cout << "output: " << GetOpenCVTypeName(img.type()) << std::endl;
 
     // iterate over each raster band
     // note that OpenCV does bgr rather than rgb

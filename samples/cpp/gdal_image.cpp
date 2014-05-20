@@ -18,13 +18,18 @@ using namespace std;
 int main( int argc, char* argv[] ){
 
     ///
-    cv::Mat image = cv::imread(argv[1], 0);
+    cv::Mat image = cv::imread(argv[1], cv::IMREAD_LOAD_GDAL );
 
     cout << image.rows << " x " << image.cols << endl;
     if( image.rows <= 0 || image.cols <= 0 ){ return 1; }
     
     cv::imshow("image",image);
     cv::waitKey(5000);
+
+    // ideas
+    // 1.  load normal image
+    // 2.  load elevation data and create heat map
+    // 3.  overlay route onto map using geographic corners
 
     return 0;
 }
