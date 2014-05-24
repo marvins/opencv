@@ -16,13 +16,14 @@
 using namespace std;
 
 
-/// get the corner points
+/// define the corner points
+///    Note that GDAL can natively determine this
 cv::Point2d tl( -122.441017, 37.815664 );
 cv::Point2d tr( -122.370919, 37.815311 );
 cv::Point2d bl( -122.441533, 37.747167 );
 cv::Point2d br( -122.3715,   37.746814 );
 
-/// compute all dem corners
+/// determine dem corners
 cv::Point2d dem_bl( -122.0, 38);
 cv::Point2d dem_tr( -123.0, 37);
 
@@ -31,9 +32,9 @@ std::vector<std::pair<cv::Vec3b,double> > color_range;
 
 /**
  * Linear Interpolation
- * @param[in] p1 Point 1
- * @param[in] p2 Point 2
- * @param[in] t Ratio from Point 1 to Point 2
+ * p1 - Point 1
+ * p2 - Point 2
+ * t  - Ratio from Point 1 to Point 2
 */
 cv::Point2d lerp( cv::Point2d const& p1, cv::Point2d const& p2, const double& t ){
     return cv::Point2d( ((1-t)*p1.x) + (t*p2.x),
@@ -60,16 +61,16 @@ cv::Vec<DATATYPE,N> lerp( cv::Vec<DATATYPE,N> const& minColor,
 */
 cv::Vec3b get_dem_color( const double& elevation ){
     
-    // if the elevation is below the minimum, then return it
+    // if the elevation is below the minimum, return the minimum
     if( elevation < color_range[0].second ){
         return color_range[0].first;
     }
-    // if the elevation is above the maximum, then return it
+    // if the elevation is above the maximum, return the maximum
     if( elevation > color_range.back().second ){
         return color_range.back().first;
     }
 
-    // otherwise, find the proper index
+    // otherwise, find the proper starting index
     int idx=0;
     double t = 0;
     for( int x=0; x<color_range.size()-1; x++ ){
@@ -85,6 +86,7 @@ cv::Vec3b get_dem_color( const double& elevation ){
         }
     }
 
+    // interpolate the color
     return lerp( color_range[idx].first, color_range[idx+1].first, t);
 }
 
@@ -124,6 +126,16 @@ cv::Point2d pixel2world( const int& x, const int& y, const cv::Size& size ){
     return lerp( leftSide, rightSide, rx );
 }
 
+/**
+ * Add color to a specific pixel color value
+*/
+void add_color( cv::Vec3b& pix, const uchar& b, const uchar& g, const uchar& r ){
+
+    if( pix[0] + b < 255 && pix[0] + b >= 0 ){ pix[0] += b; }
+    if( pix[1] + g < 255 && pix[1] + g >= 0 ){ pix[1] += g; }
+    if( pix[2] + r < 255 && pix[2] + r >= 0 ){ pix[2] += r; }
+}
+
 
 /**
  * Main Function
@@ -146,20 +158,21 @@ int main( int argc, char* argv[] ){
     cv::Mat dem = cv::imread(argv[2], cv::IMREAD_LOAD_GDAL | cv::IMREAD_ANYDEPTH );
     
     /// create our output products
-    cv::Mat output_image( image.size(), CV_8UC3 );
     cv::Mat output_dem(   image.size(), CV_8UC3 );
+    cv::Mat output_dem_flood(   image.size(), CV_8UC3 );
 
     /// for sanity sake, make sure GDAL Loads it as a signed short
     if( dem.type() != CV_16SC1 ){ throw std::runtime_error("DEM image type must be CV_16SC1"); }
     
     /// define the color range to create our output DEM heat map
     //  Pair format ( Color, elevation );  Push from low to high
-    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 188, 154,  46),  -1));
-    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 110, 220, 110),  0.25));
-    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 160, 250, 240),  20));
-    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 170, 220, 230),  115));
-    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 220, 220, 220),  120));
-    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 250, 250, 250),  300));
+    //  Note:  This would be perfect for a configuration file, but is here for a working demo.
+    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 188, 154,  46),   -1));
+    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 110, 220, 110), 0.25));
+    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 150, 250, 230),   20));
+    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 160, 220, 200),   75));
+    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 220, 190, 170),  100));
+    color_range.push_back( std::pair<cv::Vec3b,double>(cv::Vec3b( 250, 180, 140),  200));
 
     // define a minimum elevation
     double minElevation = -10;
@@ -184,17 +197,32 @@ int main( int argc, char* argv[] ){
         }
 
         // write the pixel value to the file
-        output_image.at<cv::Vec3b>(y,x) = image.at<cv::Vec3b>(y,x);
+        output_dem_flood.at<cv::Vec3b>(y,x) = image.at<cv::Vec3b>(y,x);
         
         // compute the color for the heat map output
         cv::Vec3b actualColor = get_dem_color(dz);
         output_dem.at<cv::Vec3b>(y,x) = actualColor;
-
+        
+        // show effect of a 10 meter increase in ocean levels
+        if( dz < 10 ){
+            add_color( output_dem_flood.at<cv::Vec3b>(y,x), 90, 0, 0 );
+        }
+        // show effect of a 50 meter increase in ocean levels
+        else if( dz < 50 ){
+            add_color( output_dem_flood.at<cv::Vec3b>(y,x), 0, 90, 0 );
+        }
+        // show effect of a 100 meter increase in ocean levels
+        else if( dz < 100 ){
+            add_color( output_dem_flood.at<cv::Vec3b>(y,x), 0, 0, 90 );
+        }
 
     }}
     
-    cv::imwrite( "dem.jpg"   ,  output_dem );
-    cv::imwrite( "output.jpg",  output_image);
+    // print our heat map
+    cv::imwrite( "heat-map.jpg"   ,  output_dem );
+
+    // print the flooding effect image
+    cv::imwrite( "flooded.jpg",  output_dem_flood);
 
     return 0;
 }
