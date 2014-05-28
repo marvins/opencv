@@ -54,10 +54,44 @@
 /// Geospatial Data Abstraction Library
 #include <gdal/cpl_conv.h>
 #include <gdal/gdal_priv.h>
+#include <gdal/gdal.h>
 
 
 /// Start of CV Namespace
 namespace cv {
+
+/**
+ * Convert GDAL Palette Interpretation to OpenCV Pixel Type
+*/
+int gdalPaletteInterpretation2OpenCV( GDALPaletteInterp const& paletteInterp, 
+                                      GDALDataType const& gdalType );
+
+/**
+ * Convert a GDAL Raster Type to OpenCV Type
+*/
+int gdal2opencv( const GDALDataType& gdalType, const int& channels );
+
+/**
+ * Write an image to pixel
+*/
+void write_pixel( const double& pixelValue, 
+                  GDALDataType const& gdalType,
+                  const int& gdalChannels,
+                  Mat& image, 
+                  const int& row, 
+                  const int& col, 
+                  const int& channel );
+
+/**
+ * Write a color table pixel to the image
+*/
+void write_ctable_pixel( const double& pixelValue, 
+                         const GDALDataType& gdalType,
+                         const GDALColorTable* gdalColorTable, 
+                         Mat& image, 
+                         const int& y, 
+                         const int& x, 
+                         const int& c );
 
 /**
  * Loader for GDAL
@@ -98,6 +132,10 @@ class GdalDecoder : public BaseImageDecoder{
         
         /**
          * Test the file signature
+         *
+         * In general, this should be avoided as the user should specifically request GDAL.
+         * The reason is that GDAL tends to overlap with other image formats and it is probably
+         * safer to use other formats first. 
         */
         virtual bool checkSignature( const String& signature ) const;
 
@@ -108,6 +146,9 @@ class GdalDecoder : public BaseImageDecoder{
 
         /// GDAL Driver
         GDALDriver* m_driver;
+        
+        /// Check if we are reading from a color table
+        bool hasColorTable;
 
 }; /// End of GdalDecoder Class
 

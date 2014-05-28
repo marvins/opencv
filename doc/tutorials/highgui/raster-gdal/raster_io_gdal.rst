@@ -63,12 +63,48 @@ If you know beforehand the type of DEM model you are loading, then it may be a s
 using an assert or other mechanism. NASA or DOD specification documents can provide the input types for various 
 elevation models.  The major types, SRTM and DTED,  are both signed shorts. 
 
+Notes
+=====
+
+Lat/Lon (Geodetic) Coordinates should normally be avoided
+---------------------------------------------------------
+
+The Geodetic Coordinate System is a spherical coordinate system, meaning that using them with Cartesian mathematics is technically incorrect.  This 
+demo uses them to increase the readability and is accurate enough to make the point.  A better coordinate system would be Universal Transverse Mercator.  
+
+Finding the corner coordinates
+------------------------------
+
+One easy method to find the corner coordinates of an image is to use the command-line tool ``gdalinfo``.  For imagery which is ortho-rectified and contains 
+the projection information, you can use the `USGS EarthExplorer <http://http://earthexplorer.usgs.gov>`_. 
+
+.. code-block:: bash
+
+    $> gdalinfo N37W123.hgt 
+       
+       Driver: SRTMHGT/SRTMHGT File Format
+       Files: N37W123.hgt
+       Size is 3601, 3601
+       Coordinate System is:
+       GEOGCS["WGS 84",
+       DATUM["WGS_1984",
+       
+       ... more output ...
+
+       Corner Coordinates:
+       Upper Left  (-123.0001389,  38.0001389) (123d 0' 0.50"W, 38d 0' 0.50"N)
+       Lower Left  (-123.0001389,  36.9998611) (123d 0' 0.50"W, 36d59'59.50"N)
+       Upper Right (-121.9998611,  38.0001389) (121d59'59.50"W, 38d 0' 0.50"N)
+       Lower Right (-121.9998611,  36.9998611) (121d59'59.50"W, 36d59'59.50"N)
+       Center      (-122.5000000,  37.5000000) (122d30' 0.00"W, 37d30' 0.00"N)
+      
+        ... more output ...
 
 
 Results
 =======
 
-Below is the output of the program. 
+Below is the output of the program.  Use the first image as the input.  For the DEM model, download the SRTM file located at the USGS here. `http://dds.cr.usgs.gov/srtm/version2_1/SRTM1/Region_04/N37W123.hgt.zip <http://dds.cr.usgs.gov/srtm/version2_1/SRTM1/Region_04/N37W123.hgt.zip>`_
 
 .. image:: images/output.jpg 
 

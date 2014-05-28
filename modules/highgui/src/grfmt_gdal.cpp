@@ -45,8 +45,46 @@
 #include <stdexcept>
 #include <string>
 
+
 namespace cv{
 
+            
+/**
+ * Convert GDAL Palette Interpretation to OpenCV Pixel Type
+*/
+int  gdalPaletteInterpretation2OpenCV( GDALPaletteInterp const& paletteInterp, GDALDataType const& gdalType ){
+ 
+    switch( paletteInterp ){
+
+        /// GRAYSCALE
+        case GPI_Gray:
+            if( gdalType == GDT_Byte    ){ return CV_8UC1;  }
+            if( gdalType == GDT_UInt16  ){ return CV_16UC1; }
+            if( gdalType == GDT_Int16   ){ return CV_16SC1; }
+            if( gdalType == GDT_UInt32  ){ return CV_32SC1; }
+            if( gdalType == GDT_Int32   ){ return CV_32SC1; }
+            if( gdalType == GDT_Float32 ){ return CV_32FC1; }
+            if( gdalType == GDT_Float64 ){ return CV_64FC1; }
+            return -1;
+
+        /// RGB
+        case GPI_RGB:
+            if( gdalType == GDT_Byte    ){ return CV_8UC1;  }
+            if( gdalType == GDT_UInt16  ){ return CV_16UC3; }
+            if( gdalType == GDT_Int16   ){ return CV_16SC3; }
+            if( gdalType == GDT_UInt32  ){ return CV_32SC3; }
+            if( gdalType == GDT_Int32   ){ return CV_32SC3; }
+            if( gdalType == GDT_Float32 ){ return CV_32FC3; }
+            if( gdalType == GDT_Float64 ){ return CV_64FC3; }
+            return -1;
+
+
+        /// otherwise
+        default:
+            return -1;
+
+    }
+}
 
 /**
  * Convert gdal type to opencv type
@@ -127,10 +165,12 @@ std::string GetOpenCVTypeName( const int& type ){
 */
 GdalDecoder::GdalDecoder(){
 
-    std::cout << "gdal decoder constructor" << std::endl;
     
     // set a dummy signature
-    m_signature="000000000000";
+    m_signature="0";
+    for( size_t i=0; i<160; i++ ){
+        m_signature += "0";
+    }
     
     /// Register the driver
     GDALAllRegister();
@@ -144,7 +184,6 @@ GdalDecoder::GdalDecoder(){
 */
 GdalDecoder::~GdalDecoder(){
 
-    std::cout << "gdal decoder destructor" << std::endl;
     
     if( m_dataset != NULL ){
        close(); 
@@ -186,10 +225,17 @@ double range_cast( const GDALDataType& gdalType, const int& cvDepth, const doubl
     return (value);
 }
 
+                    
 /**
  * There are some better mpl techniques for doing this.
 */
-void write_pixel( const double& pixelValue, const GDALDataType& gdalType, const int& gdalChannels, Mat& image, const int& row, const int& col, const int& channel ){
+void write_pixel( const double& pixelValue, 
+                  const GDALDataType& gdalType, 
+                  const int& gdalChannels, 
+                  Mat& image, 
+                  const int& row, 
+                  const int& col, 
+                  const int& channel ){
 
     // convert the pixel
     double newValue = range_cast(gdalType, image.depth(), pixelValue );
@@ -207,7 +253,12 @@ void write_pixel( const double& pixelValue, const GDALDataType& gdalType, const 
 
     // input: 1 channel, output: 3 channel
     else if( gdalChannels == 1 && image.channels() == 3 ){
-        if( image.depth() == CV_8U ){  image.at<Vec3b>(row,col) = Vec3b(newValue,newValue,newValue); }
+        if( image.depth() == CV_8U ){   image.at<Vec3b>(row,col) = Vec3b(newValue,newValue,newValue); }
+        else if( image.depth() == CV_16U ){  image.at<Vec3s>(row,col) = Vec3s(newValue,newValue,newValue); }
+        else if( image.depth() == CV_16S ){  image.at<Vec3s>(row,col) = Vec3s(newValue,newValue,newValue); }
+        else if( image.depth() == CV_32S ){  image.at<Vec3i>(row,col) = Vec3i(newValue,newValue,newValue); }
+        else if( image.depth() == CV_32F ){  image.at<Vec3f>(row,col) = Vec3f(newValue,newValue,newValue); }
+        else if( image.depth() == CV_64F ){  image.at<Vec3d>(row,col) = Vec3d(newValue,newValue,newValue); }
         else{                          throw std::runtime_error("Unknown image depth, gdal:1, img: 3"); }
     }
 
@@ -259,38 +310,80 @@ void write_pixel( const double& pixelValue, const GDALDataType& gdalType, const 
 
 }
 
+
+void write_ctable_pixel( const double& pixelValue, 
+                         const GDALDataType& gdalType, 
+                         GDALColorTable const* gdalColorTable, 
+                         Mat& image, 
+                         const int& y, 
+                         const int& x, 
+                         const int& c ){
+
+    if( gdalColorTable == NULL ){
+       write_pixel( pixelValue, gdalType, 1, image, y, x, c );
+    }
+
+    // if we are Grayscale, then do a straight conversion
+    if( gdalColorTable->GetPaletteInterpretation() == GPI_Gray ){
+        write_pixel( pixelValue, gdalType, 1, image, y, x, c );
+    }
+
+    // if we are rgb, then convert here
+    else if( gdalColorTable->GetPaletteInterpretation() == GPI_RGB ){
+        
+        // get the pixel
+        short r = gdalColorTable->GetColorEntry( (int)pixelValue )->c1;
+        short g = gdalColorTable->GetColorEntry( (int)pixelValue )->c2;
+        short b = gdalColorTable->GetColorEntry( (int)pixelValue )->c3;
+        short a = gdalColorTable->GetColorEntry( (int)pixelValue )->c4;
+
+        write_pixel( r, gdalType, 4, image, y, x, 2 );
+        write_pixel( g, gdalType, 4, image, y, x, 1 );
+        write_pixel( b, gdalType, 4, image, y, x, 0 );
+        if( image.channels() > 3 ){
+            write_pixel( a, gdalType, 4, image, y, x, 1 );
+        }
+    }
+    
+    // otherwise, set zeros
+    else{
+        write_pixel( pixelValue, gdalType, 1, image, y, x, c );
+    }
+}
+
+
+
 /**
  * read data
 */
 bool GdalDecoder::readData( Mat& img ){
 
-    std::cout << "gdal decoder readData" << std::endl;
     
     // make sure the image is the proper size
     if( img.size().height != m_height ){
-        std::cout << "Input image has wrong height: " << img.size().height << " vs " << m_height << std::endl;
         return false;
     }
     if( img.size().width != m_width ){
-        std::cout << "Input image has wrong width: " << img.size().width << " vs " << m_width << std::endl;
         return false;
     }
 
     // make sure the raster is alive
     if( m_dataset == NULL || m_driver == NULL ){ 
-        std::cout << "dataset: " << m_dataset << ", driver: " << m_driver << std::endl;
         return false; 
     }
 
     // set the image to zero
     img = 0;
 
-    std::cout << "input : " << GetOpenCVTypeName(m_type) << std::endl;
-    std::cout << "output: " << GetOpenCVTypeName(img.type()) << std::endl;
 
     // iterate over each raster band
     // note that OpenCV does bgr rather than rgb
     int nChannels = m_dataset->GetRasterCount();
+    GDALColorTable* gdalColorTable = NULL;
+    if( m_dataset->GetRasterBand(1)->GetColorTable() != NULL ){
+        gdalColorTable = m_dataset->GetRasterBand(1)->GetColorTable();
+    }
+
     const GDALDataType gdalType = m_dataset->GetRasterBand(1)->GetRasterDataType();
     int nRows, nCols;
 
@@ -324,8 +417,12 @@ bool GdalDecoder::readData( Mat& img ){
             
                 // set depending on image types
                 //   given boost, I would use enable_if to speed up.  Avoid for now.
-                write_pixel( scanline[x], gdalType, nChannels, img, y, x, c );
-
+                if( hasColorTable == false ){
+                    write_pixel( scanline[x], gdalType, nChannels, img, y, x, c );
+                }
+                else{
+                    write_ctable_pixel( scanline[x], gdalType, gdalColorTable, img, y, x, c ); 
+                }
             }
         }
 
@@ -344,20 +441,17 @@ bool GdalDecoder::readData( Mat& img ){
 */
 bool GdalDecoder::readHeader(){
 
-    std::cout << "gdal decoder readHeader" << std::endl;
 
 	// load the dataset 
     m_dataset = (GDALDataset*) GDALOpen( m_filename.c_str(), GA_ReadOnly);
 	
     // if dataset is null, then there was a problem
 	if( m_dataset == NULL ){
-        std::cout << "GDALOpen returned a null object." << std::endl;
 		return false;
 	}
 	
 	// make sure we have pixel data inside the raster
 	if( m_dataset->GetRasterCount() <= 0 ){
-        std::cout << "File has no pixel data." << std::endl;
 		return false;
 	}
 	
@@ -366,7 +460,6 @@ bool GdalDecoder::readHeader(){
     
     // if the driver failed, then exit
     if( m_driver == NULL ){ 
-        std::cout << "Driver failed to load" << std::endl;
         return false; 
     }
     
@@ -377,18 +470,49 @@ bool GdalDecoder::readHeader(){
     
     // make sure we have at least one band/channel
     if( m_dataset->GetRasterCount() <= 0 ){
-        std::cout << "No raster band found." << std::endl;
         return false;
+    }
+    
+    // check if we have a color palette
+    int tempType;
+    if( m_dataset->GetRasterBand(1)->GetColorInterpretation() == GCI_PaletteIndex ){
+        
+        // remember that we have a color palette
+        hasColorTable = true;
+        
+        // if the color tables does not exist, then we failed
+        if( m_dataset->GetRasterBand(1)->GetColorTable() == NULL ){
+            return false;
+        }
+
+        // otherwise, get the pixeltype
+        else{
+            // convert the palette interpretation to opencv type
+            tempType = gdalPaletteInterpretation2OpenCV( m_dataset->GetRasterBand(1)->GetColorTable()->GetPaletteInterpretation(), 
+                                                         m_dataset->GetRasterBand(1)->GetRasterDataType() );
+
+            if( tempType == -1 ){
+                return false; 
+            }
+            m_type = tempType;
+        }
+
+    }
+    
+    // otherwise, we have standard channels
+    else{
+    
+        // remember that we don't have a color table
+        hasColorTable = false;
+
+        // convert the datatype to opencv
+        tempType = gdal2opencv( m_dataset->GetRasterBand(1)->GetRasterDataType(), m_dataset->GetRasterCount() );
+        if( tempType == -1 ){
+            return false;
+        }
+        m_type = tempType;
     }
 
-    // convert the datatype to opencv
-    int tempType = gdal2opencv( m_dataset->GetRasterBand(1)->GetRasterDataType(), m_dataset->GetRasterCount());
-    if( tempType == -1 ){
-        std::cout << "type not recognized. Load failed." << std::endl;
-        return false;
-    }
-    m_type = tempType;
-    
     return true;
 }
 
@@ -397,7 +521,6 @@ bool GdalDecoder::readHeader(){
 */
 void GdalDecoder::close(){
     
-    std::cout << "gdal decoder close" << std::endl;
 
     GDALClose((GDALDatasetH)m_dataset);
     m_dataset = NULL;
@@ -416,8 +539,6 @@ ImageDecoder GdalDecoder::newDecoder()const{
 */
 bool GdalDecoder::checkSignature( const String& signature )const{
 
-    std::cout << "gdal decoder check signature" << std::endl;
-    std::cout << "sig: " << signature.c_str() << std::endl;
     
     // look for NITF
     std::string str = signature.c_str();
@@ -425,6 +546,11 @@ bool GdalDecoder::checkSignature( const String& signature )const{
         return true;
     }
     
+    // look for DTED
+    if( str.substr(140,4) == "DTED" ){
+        return true;
+    }
+
     return false;
 }
 
