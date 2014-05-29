@@ -2665,7 +2665,7 @@ void cv::hconcat(const Mat* src, size_t nsrc, OutputArray _dst)
     size_t i;
     for( i = 0; i < nsrc; i++ )
     {
-        CV_Assert( !src[i].empty() && src[i].dims <= 2 &&
+        CV_Assert( src[i].dims <= 2 &&
                    src[i].rows == src[0].rows &&
                    src[i].type() == src[0].type());
         totalCols += src[i].cols;
@@ -2705,7 +2705,7 @@ void cv::vconcat(const Mat* src, size_t nsrc, OutputArray _dst)
     size_t i;
     for( i = 0; i < nsrc; i++ )
     {
-        CV_Assert( !src[i].empty() && src[i].dims <= 2 &&
+        CV_Assert(src[i].dims <= 2 &&
                   src[i].cols == src[0].cols &&
                   src[i].type() == src[0].type());
         totalRows += src[i].rows;
@@ -3643,9 +3643,9 @@ static IppFlipFunc getFlipFunc(int depth)
     CV_SUPPRESS_DEPRECATED_START
     return
             depth == CV_8U || depth == CV_8S ? (IppFlipFunc)ippsFlip_8u_I :
-            /*depth == CV_16U || depth == CV_16S ? (IppFlipFunc)ippsFlip_16u_I :
+            depth == CV_16U || depth == CV_16S ? (IppFlipFunc)ippsFlip_16u_I :
             depth == CV_32S || depth == CV_32F ? (IppFlipFunc)ippsFlip_32f_I :
-            depth == CV_64F ? (IppFlipFunc)ippsFlip_64f_I : */0;
+            depth == CV_64F ? (IppFlipFunc)ippsFlip_64f_I : 0;
     CV_SUPPRESS_DEPRECATED_END
 }
 
@@ -3700,7 +3700,7 @@ template<typename T> static void sort_( const Mat& src, Mat& dst, int flags )
 #endif
         {
 #ifdef USE_IPP_SORT
-            if (depth != CV_8U)
+            if (depth == CV_8U)
                 setIppErrorStatus();
 #endif
             std::sort( ptr, ptr + len );
@@ -4050,15 +4050,17 @@ double cv::kmeans( InputArray _data, int K,
                    int flags, OutputArray _centers )
 {
     const int SPP_TRIALS = 3;
-    Mat data = _data.getMat();
-    bool isrow = data.rows == 1 && data.channels() > 1;
-    int N = !isrow ? data.rows : data.cols;
-    int dims = (!isrow ? data.cols : 1)*data.channels();
-    int type = data.depth();
+    Mat data0 = _data.getMat();
+    bool isrow = data0.rows == 1 && data0.channels() > 1;
+    int N = !isrow ? data0.rows : data0.cols;
+    int dims = (!isrow ? data0.cols : 1)*data0.channels();
+    int type = data0.depth();
 
     attempts = std::max(attempts, 1);
-    CV_Assert( data.dims <= 2 && type == CV_32F && K > 0 );
+    CV_Assert( data0.dims <= 2 && type == CV_32F && K > 0 );
     CV_Assert( N >= K );
+
+    Mat data(N, dims, CV_32F, data0.data, isrow ? dims * sizeof(float) : static_cast<size_t>(data0.step));
 
     _bestLabels.create(N, 1, CV_32S, -1, true);
 
